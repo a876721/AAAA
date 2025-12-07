@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>非洲動物方塊遊戲</title>
+    <!-- 引入 Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f3e8; /* 淺土色背景 */
+        }
+        .game-container {
+            max-width: 500px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+            border: 8px solid #8B4513; /* 深棕色邊框 */
+        }
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            aspect-ratio: 1 / 1; /* 保持正方形 */
+            border: 2px solid #333;
+            background-color: #008000; /* 模擬草地 */
+        }
+        .gem {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            cursor: pointer;
+            transition: transform 0.1s ease-out, opacity 0.3s ease-in-out;
+            user-select: none;
+            position: relative;
+        }
+        .selected {
+            outline: 4px solid #FFD700; /* 黃金邊框 */
+            outline-offset: -4px;
+            z-index: 10;
+        }
+        .matching {
+            animation: match-fade 0.5s forwards;
+        }
+        @keyframes match-fade {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.5); }
+        }
+        .btn-primary {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 9999px;
+            box-shadow: 0 4px #388E3C;
+            transition: all 0.1s;
+        }
+        .btn-primary:active {
+            box-shadow: 0 1px #388E3C;
+            transform: translateY(3px);
+        }
+
+        /* 響應式調整 */
+        @media (max-width: 640px) {
+            .game-container {
+                margin: 10px;
+                width: calc(100% - 20px);
+                max-width: 100%;
+            }
+            .gem {
+                font-size: clamp(1.2rem, 6vw, 2rem);
+            }
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <div id="app" class="game-container rounded-xl p-4 flex flex-col items-center">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">🐘 非洲動物方塊 🦁</h1>
+        
+        <!-- 新增計時器和分數顯示面板 -->
+        <div class="flex justify-between w-full mb-4 space-x-2">
+            <p id="timer-display" class="flex-1 text-xl font-mono text-red-600 bg-red-100 p-2 rounded-lg text-center shadow-inner border border-red-300 transition-colors">
+                時間: 40s
+            </p>
+            <p id="score-display" class="flex-1 text-xl font-mono text-green-700 bg-yellow-100 p-2 rounded-lg text-center shadow-inner border border-yellow-300">
+                分數: 0
+            </p>
+        </div>
+
+        <div id="game-grid" class="game-grid w-full rounded-lg">
+            <!-- 動物方塊將由 JavaScript 填充 -->
+        </div>
+
+        <!-- 新增排行榜按鈕 -->
+        <div class="flex w-full mt-6 space-x-4">
+            <button id="new-game-btn" class="btn-primary flex-1 text-lg font-bold">
+                重新開始
+            </button>
+            <button id="leaderboard-btn" class="btn-primary bg-blue-500 hover:bg-blue-600 shadow-blue-700 flex-1 text-lg font-bold">
+                排行榜 📝
+            </button>
+        </div>
+
+        <!-- 遊戲訊息/模態框 (用於一般訊息和分數儲存) -->
+        <div id="message-box" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-20">
+            <div class="bg-white p-8 rounded-lg shadow-2xl max-w-sm w-full text-center">
+                <h3 id="message-title" class="text-2xl font-bold mb-4 text-green-700"></h3>
+                <p id="message-text" class="mb-6 text-gray-600"></p>
+                
+                <!-- 新增：玩家名稱輸入框 (預設隱藏) -->
+                <input id="player-name-input" type="text" placeholder="輸入您的名稱 (最多8字元)" maxlength="8" class="hidden w-full p-2 mb-4 border-2 border-gray-300 rounded-lg text-center font-bold text-gray-700 focus:outline-none focus:border-blue-500">
+
+                <!-- 變更：按鈕將根據情境調整文字和行為 -->
+                <button id="action-button" class="btn-primary w-full">
+                    確定
+                </button>
+            </div>
+        </div>
+
+        <!-- 排行榜模態框 -->
+        <div id="leaderboard-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center p-4 z-30">
+            <div class="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full transform transition-all">
+                <!-- 標題已更新為「全球排行榜」 -->
+                <h3 class="text-3xl font-extrabold mb-6 text-center text-blue-700">🏆 全球排行榜 🏆</h3>
+                <!-- 移除了顯示用戶 ID 的元素 -->
+                <p class="text-sm text-center text-gray-500 mb-4">此為所有玩家共享的公開紀錄。</p>
+                <div id="leaderboard-list" class="space-y-3">
+                    <!-- 排行榜內容將由 JS 填充 -->
+                    <p class="text-center text-gray-500">載入中...</p>
+                </div>
+                <button id="close-leaderboard-btn" class="btn-primary mt-6 w-full bg-red-500 shadow-red-700">
+                    關閉
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模組化 JavaScript - Firebase 設置和遊戲邏輯 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            query, 
+            orderBy, 
+            limit, 
+            addDoc, 
+            onSnapshot 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ======================================================================
+        // [已更新] 這是您的 Firebase 專案配置 'rabbits-638bc' 的實際密鑰。
+        // ======================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyChWzeo7yP_eebJRqBwRRu6tZdbUfrGRsI", 
+            authDomain: "rabbits-638bc.firebaseapp.com",
+            projectId: "rabbits-638bc", 
+            storageBucket: "rabbits-638bc.firebasestorage.app",
+            messagingSenderId: "668839331574",
+            appId: "1:668839331574:web:fc28cd1a33effb92f74ed7"
+        };
+
+        // 固定 App ID 僅用於組織公開排行榜資料。
+        const fixedAppId = 'safari-match-3';
+        // ======================================================================
+
+        let app;
+        let db;
+        let auth;
+        let userId = 'anon_user'; // 預設值
+        let isAuthReady = false; // 追蹤認證是否完成
+
+        // 初始化 Firebase (使用您提供的密鑰)
+        app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+
+        // [修正] 使用標準的匿名登入
+        async function initializeAuth() {
+            try {
+                // 嘗試匿名登入
+                await signInAnonymously(auth);
+                
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("Firebase 匿名認證成功, 用戶ID:", userId);
+                    } else {
+                        // 如果匿名登入失敗，使用隨機 ID 作為備用
+                        userId = crypto.randomUUID();
+                        console.log("Firebase 匿名認證失敗，使用隨機 ID:", userId);
+                    }
+                    isAuthReady = true;
+                    // 認證完成後啟動排行榜監聽
+                    fetchLeaderboard();
+                });
+
+            } catch (error) {
+                console.error("Firebase 認證失敗:", error);
+                isAuthReady = true; // 即使失敗也標記為完成，防止阻塞
+                userId = crypto.randomUUID();
+            }
+        }
+        initializeAuth();
+
+
+        // --- 遊戲邏輯開始 ---
+        const GRID_SIZE = 8;
+        const ANIMALS = ['🦁', '🐘', '🦓', '🦒', '🦛', '🐆']; // 獅子, 大象, 斑馬, 長頸鹿, 河馬, 獵豹
+        const GAME_DURATION = 40; // 40秒
+        
+        const animalGrid = [];
+        let score = 0;
+        let selectedGem = null;
+        let isProcessing = false;
+        let timeLeft = GAME_DURATION;
+        let timerInterval = null;
+        let isGameOver = false;
+
+        // DOM 元素引用
+        const gridElement = document.getElementById('game-grid');
+        const scoreDisplay = document.getElementById('score-display');
+        const timerDisplay = document.getElementById('timer-display');
+        const newGameBtn = document.getElementById('new-game-btn');
+        const messageBox = document.getElementById('message-box');
+        const messageTitle = document.getElementById('message-title');
+        const messageText = document.getElementById('message-text');
+        const playerNameInput = document.getElementById('player-name-input'); // 玩家名稱輸入框
+        const actionButton = document.getElementById('action-button'); 
+
+        const leaderboardBtn = document.getElementById('leaderboard-btn');
+        const leaderboardModal = document.getElementById('leaderboard-modal');
+        const leaderboardList = document.getElementById('leaderboard-list');
+        const closeLeaderboardBtn = document.getElementById('close-leaderboard-btn');
+
+
+        /**
+         * 顯示自定義訊息框
+         * @param {string} title 訊息標題
+         * @param {string} text 訊息內容
+         * @param {function(string | null)} action 按鈕點擊後執行的動作，如果 showInput=true，會傳入輸入值
+         * @param {string} buttonText 按鈕文字
+         * @param {boolean} showInput 是否顯示輸入框
+         */
+        function showModal(title, text, action, buttonText = '確定', showInput = false) {
+            messageTitle.textContent = title;
+            messageText.textContent = text;
+            actionButton.textContent = buttonText;
+            
+            // 處理輸入框顯示
+            playerNameInput.classList.toggle('hidden', !showInput);
+            if (showInput) {
+                playerNameInput.value = ''; 
+                playerNameInput.placeholder = "輸入您的名稱 (最多8字元)"; 
+                playerNameInput.focus();
+            }
+
+            // 清除舊的事件監聽器，並設置新的
+            actionButton.onclick = null; 
+            actionButton.onclick = () => {
+                let inputValue = null;
+                if (showInput) {
+                    // 關鍵修正：先捕獲輸入值，再執行動作
+                    inputValue = playerNameInput.value.trim(); 
+                }
+                
+                // 執行動作，並傳入捕獲到的值
+                if (action) action(inputValue); 
+
+                // 動作執行完畢後，再關閉模態框
+                closeModal();
+            };
+
+            messageBox.classList.remove('hidden');
+            messageBox.classList.add('flex');
+        }
+
+        /**
+         * 關閉自定義訊息框
+         */
+        function closeModal() {
+            messageBox.classList.add('hidden');
+            messageBox.classList.remove('flex');
+        }
+
+        // 綁定排行榜按鈕
+        leaderboardBtn.addEventListener('click', () => {
+            leaderboardModal.classList.remove('hidden');
+            leaderboardModal.classList.add('flex');
+        });
+        closeLeaderboardBtn.addEventListener('click', () => {
+            leaderboardModal.classList.add('hidden');
+            leaderboardModal.classList.remove('flex');
+        });
+
+        /**
+         * 隨機選擇一種動物
+         * @returns {string} 動物表情符號
+         */
+        function getRandomAnimal() {
+            return ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
+        }
+
+        /**
+         * 檢查給定座標是否有匹配 (用於初始化時避免初始匹配)
+         * @param {number} r 行
+         * @param {number} c 列
+         * @param {string} animal 要檢查的動物類型
+         * @returns {boolean} 是否存在匹配
+         */
+        function hasMatchAt(r, c, animal) {
+            // 檢查水平左側兩個
+            if (c >= 2 && animalGrid[r][c - 1] === animal && animalGrid[r][c - 2] === animal) return true;
+            // 檢查垂直上方兩個
+            if (r >= 2 && animalGrid[r - 1][c] === animal && animalGrid[r - 2][c] === animal) return true;
+            return false;
+        }
+
+        /**
+         * 初始化遊戲網格
+         */
+        function initializeGrid() {
+            for (let r = 0; r < GRID_SIZE; r++) {
+                animalGrid[r] = [];
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    let animal;
+                    // 生成動物，避免初始匹配
+                    do {
+                        animal = getRandomAnimal();
+                    } while (hasMatchAt(r, c, animal));
+                    animalGrid[r][c] = animal;
+                }
+            }
+        }
+
+        /**
+         * 渲染網格到 HTML
+         */
+        function renderGrid() {
+            gridElement.innerHTML = '';
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const gem = document.createElement('div');
+                    gem.classList.add('gem');
+                    gem.dataset.row = r;
+                    gem.dataset.col = c;
+                    gem.textContent = animalGrid[r][c];
+                    gem.addEventListener('click', handleGemClick);
+                    gridElement.appendChild(gem);
+                }
+            }
+        }
+
+        /**
+         * 新增分數到總分
+         */
+        function addPoints(points) {
+            score += points;
+            scoreDisplay.textContent = `分數: ${score}`;
+        }
+        
+        /**
+         * 重設分數並更新顯示
+         */
+        function resetScore() {
+            score = 0;
+            scoreDisplay.textContent = `分數: 0`;
+        }
+
+        /**
+         * 處理方塊點擊事件
+         */
+        function handleGemClick(e) {
+            if (isProcessing || isGameOver) return; 
+
+            const clickedGem = e.currentTarget;
+            const r = parseInt(clickedGem.dataset.row);
+            const c = parseInt(clickedGem.dataset.col);
+
+            if (selectedGem) {
+                document.querySelector(`[data-row="${selectedGem.r}"][data-col="${selectedGem.c}"]`)?.classList.remove('selected');
+            }
+
+            if (!selectedGem) {
+                selectedGem = { r, c, element: clickedGem };
+                clickedGem.classList.add('selected');
+            } else if (selectedGem.r === r && selectedGem.c === c) {
+                selectedGem = null;
+            } else if (isAdjacent(selectedGem.r, selectedGem.c, r, c)) {
+                isProcessing = true;
+                performSwap(selectedGem, { r, c, element: clickedGem });
+                selectedGem = null; 
+            } else {
+                selectedGem = { r, c, element: clickedGem };
+                clickedGem.classList.add('selected');
+            }
+        }
+
+        /**
+         * 檢查兩組座標是否鄰近
+         */
+        function isAdjacent(r1, c1, r2, c2) {
+            return Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1;
+        }
+
+        /**
+         * 執行交換並檢查匹配
+         */
+        async function performSwap(gem1, gem2) {
+            const element1 = document.querySelector(`[data-row="${gem1.r}"][data-col="${gem1.c}"]`);
+            const element2 = document.querySelector(`[data-row="${gem2.r}"][data-col="${gem2.c}"]`);
+            
+            [animalGrid[gem1.r][gem1.c], animalGrid[gem2.r][gem2.c]] = [animalGrid[gem2.r][gem2.c], animalGrid[gem1.r][gem1.c]];
+
+            element1.textContent = animalGrid[gem1.r][gem1.c];
+            element2.textContent = animalGrid[gem2.r][gem2.c];
+
+            await new Promise(resolve => setTimeout(resolve, 50)); 
+
+            const matches = findMatches();
+
+            if (matches.length > 0) {
+                await processMatches(matches);
+                while (true) {
+                    await applyGravity();
+                    renderGrid(); 
+                    const nextMatches = findMatches();
+                    if (nextMatches.length === 0) break;
+                    await processMatches(nextMatches);
+                }
+            } else {
+                [animalGrid[gem1.r][gem1.c], animalGrid[gem2.r][gem2.c]] = [animalGrid[gem2.r][gem2.c], animalGrid[gem1.r][gem1.c]];
+                element1.textContent = animalGrid[gem1.r][gem1.c];
+                element2.textContent = animalGrid[gem2.r][gem2.c];
+                
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            if (!isGameOver && findPossibleMoves().length === 0) {
+                gameOver(true); 
+            }
+
+            isProcessing = false;
+            document.querySelectorAll('.selected').forEach(g => g.classList.remove('selected'));
+        }
+
+        /**
+         * 尋找所有 3 個或更多連線的匹配
+         */
+        function findMatches() {
+            const matches = new Set();
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE - 2; c++) {
+                    const animal = animalGrid[r][c];
+                    if (animal && animalGrid[r][c + 1] === animal && animalGrid[r][c + 2] === animal) {
+                        let i = c;
+                        while (i < GRID_SIZE && animalGrid[r][i] === animal) {
+                            matches.add(`${r},${i}`);
+                            i++;
+                        }
+                    }
+                }
+            }
+            for (let c = 0; c < GRID_SIZE; c++) {
+                for (let r = 0; r < GRID_SIZE - 2; r++) {
+                    const animal = animalGrid[r][c];
+                    if (animal && animalGrid[r + 1][c] === animal && animalGrid[r + 2][c] === animal) {
+                        let i = r;
+                        while (i < GRID_SIZE && animalGrid[i][c] === animal) {
+                            matches.add(`${i},${c}`);
+                            i++;
+                        }
+                    }
+                }
+            }
+            return Array.from(matches).map(str => {
+                const parts = str.split(',');
+                return { r: parseInt(parts[0]), c: parseInt(parts[1]) };
+            });
+        }
+
+        /**
+         * 處理匹配：清除方塊，更新分數
+         */
+        async function processMatches(matches) {
+            const points = matches.length * 10;
+            addPoints(points); 
+
+            matches.forEach(({ r, c }) => {
+                const gemElement = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+                if (gemElement) {
+                    gemElement.classList.add('matching');
+                }
+            });
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            matches.forEach(({ r, c }) => {
+                animalGrid[r][c] = null; 
+            });
+        }
+
+        /**
+         * 實施重力：讓方塊掉落
+         */
+        async function applyGravity() {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                let emptyRow = GRID_SIZE - 1; 
+                for (let r = GRID_SIZE - 1; r >= 0; r--) {
+                    if (animalGrid[r][c] !== null) {
+                        if (r !== emptyRow) {
+                            animalGrid[emptyRow][c] = animalGrid[r][c];
+                            animalGrid[r][c] = null;
+                        }
+                        emptyRow--;
+                    }
+                }
+                for (let r = 0; r <= emptyRow; r++) {
+                    animalGrid[r][c] = getRandomAnimal();
+                }
+            }
+            await new Promise(resolve => setTimeout(resolve, 100)); 
+        }
+
+        /**
+         * 尋找所有可能的合法交換移動
+         */
+        function findPossibleMoves() {
+            const moves = [];
+            function checkSwap(r1, c1, r2, c2) {
+                [animalGrid[r1][c1], animalGrid[r2][c2]] = [animalGrid[r2][c2], animalGrid[r1][c1]];
+                const matches = findMatches();
+                [animalGrid[r1][c1], animalGrid[r2][c2]] = [animalGrid[r2][c2], animalGrid[r1][c1]];
+                return matches.length > 0;
+            }
+
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (c + 1 < GRID_SIZE && checkSwap(r, c, r, c + 1)) {
+                        moves.push({ from: { r, c }, to: { r, c: c + 1 } });
+                    }
+                    if (r + 1 < GRID_SIZE && checkSwap(r, c, r + 1, c)) {
+                        moves.push({ from: { r, c }, to: { r: r + 1, c } });
+                    }
+                }
+            }
+            return moves;
+        }
+
+        // --- 計時器邏輯 ---
+
+        /**
+         * 開始倒數計時器
+         */
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timeLeft = GAME_DURATION;
+            isGameOver = false;
+            timerDisplay.textContent = `時間: ${timeLeft}s`;
+            timerDisplay.classList.remove('bg-red-500', 'text-white'); 
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = `時間: ${timeLeft}s`;
+
+                if (timeLeft <= 5) {
+                    timerDisplay.classList.add('bg-red-500', 'text-white');
+                }
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    timerDisplay.textContent = `時間: 0s`;
+                    gameOver(false); 
+                }
+            }, 1000);
+        }
+
+        /**
+         * 遊戲結束流程
+         */
+        function gameOver(noMoreMoves) {
+            if (isGameOver) return;
+            isProcessing = true;
+            isGameOver = true;
+            if (timerInterval) clearInterval(timerInterval);
+            timerDisplay.classList.remove('bg-red-500', 'text-white'); 
+            
+            showScoreSaveModal(score, noMoreMoves);
+        }
+
+        /**
+         * 顯示分數儲存模態框，讓用戶輸入名稱
+         */
+        function showScoreSaveModal(finalScore, noMoreMoves) {
+            let title = noMoreMoves ? '沒有可移動的步驟了！' : '時間到！遊戲結束！';
+            let text = `你在回合中獲得了 ${finalScore} 分！請輸入名稱以儲存分數。`;
+            
+            // 儲存動作 (接收從 showModal 捕獲的名稱)
+            const saveAction = (inputValue) => {
+                let playerName = inputValue; 
+                
+                if (playerName === '' || playerName === null) {
+                    playerName = '匿名玩家'; 
+                }
+                
+                // 儲存高分
+                saveHighScore(finalScore, playerName);
+                
+                playerNameInput.value = '';
+            };
+
+            showModal(title, text, saveAction, '儲存分數並查看紀錄', true);
+            
+            playerNameInput.placeholder = `輸入您的名稱 (預設: 匿名玩家)`;
+        }
+
+
+        // --- 排行榜 (Firestore) 邏輯 ---
+
+        /**
+         * 儲存高分到 Firestore (使用公開路徑)
+         */
+        async function saveHighScore(finalScore, displayName) {
+            if (!db || finalScore <= 0 || !isAuthReady) return; // 確保 DB 初始化且認證完成
+
+            const scoreData = {
+                score: finalScore,
+                timestamp: new Date(),
+                displayName: displayName
+            };
+
+            try {
+                // 使用固定的 'leaderboard_public_collection' 作為公開排行榜名稱
+                const leaderboardRef = collection(db, 'leaderboard_public_collection');
+                
+                for (let i = 0; i < 3; i++) {
+                    try {
+                        await addDoc(leaderboardRef, scoreData);
+                        console.log(`高分已儲存: ${finalScore} (玩家: ${displayName})`);
+                        
+                        showModal('儲存成功！', `您的分數 ${finalScore} 已成功記錄到全球排行榜！`, () => {
+                            leaderboardModal.classList.remove('hidden');
+                            leaderboardModal.classList.add('flex');
+                        }, '查看排行榜');
+
+                        return; 
+                    } catch (e) {
+                        if (i === 2) throw e; 
+                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000)); 
+                    }
+                }
+            } catch (e) {
+                console.error("儲存高分時發生錯誤:", e);
+                showModal('錯誤', '儲存分數時發生錯誤，請檢查網路連線或稍後再試。', null);
+            }
+        }
+
+        /**
+         * 從 Firestore 監聽並獲取排行榜 (使用公開路徑)
+         */
+        function fetchLeaderboard() {
+            if (!db || !isAuthReady) {
+                leaderboardList.innerHTML = '<p class="text-center text-red-500">無法連接資料庫，請檢查您的 Firebase 配置。</p>';
+                return;
+            }
+            
+            // 使用固定的 'leaderboard_public_collection'
+            const leaderboardRef = collection(db, 'leaderboard_public_collection');
+            
+            const q = query(leaderboardRef, orderBy("score", "desc"), limit(10));
+
+            // 實時監聽
+            onSnapshot(q, (snapshot) => {
+                const scores = [];
+                snapshot.forEach((doc) => {
+                    scores.push(doc.data());
+                });
+                renderLeaderboard(scores);
+            }, (error) => {
+                console.error("讀取排行榜時發生錯誤:", error);
+                leaderboardList.innerHTML = '<p class="text-center text-red-500">讀取全球排行榜失敗。</p>';
+            });
+        }
+
+        /**
+         * 渲染排行榜列表
+         */
+        function renderLeaderboard(scores) {
+            if (scores.length === 0) {
+                leaderboardList.innerHTML = '<p class="text-center text-gray-500">目前沒有公開分數紀錄。</p>';
+                return;
+            }
+
+            leaderboardList.innerHTML = scores.map((data, index) => {
+                const rank = index + 1;
+                let color = 'text-gray-700';
+                let icon = `${rank}.`;
+                const displayScore = data.score || 0; 
+
+                let border = 'border-l-4 border-gray-300';
+                if (rank === 1) {
+                    color = 'text-yellow-600 font-extrabold bg-yellow-50';
+                    icon = '🥇';
+                    border = 'border-l-4 border-yellow-500';
+                } else if (rank === 2) {
+                    color = 'text-gray-600 font-bold bg-gray-50';
+                    icon = '🥈';
+                    border = 'border-l-4 border-gray-400';
+                } else if (rank === 3) {
+                    color = 'text-amber-600 font-semibold bg-amber-50';
+                    icon = '🥉';
+                    border = 'border-l-4 border-amber-300';
+                }
+                
+                const displayPlayerName = data.displayName?.trim() || '匿名玩家';
+
+                return `
+                    <div class="flex justify-between items-center p-3 rounded-lg ${border} ${color} shadow-sm">
+                        <span class="text-lg flex items-center">
+                            <span class="mr-2 font-bold">${icon}</span> <strong class="truncate max-w-xs">${displayPlayerName}</strong>
+                        </span>
+                        <span class="text-xl font-mono">${displayScore} 分</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /**
+         * 啟動新遊戲
+         */
+        function startNewGame() {
+            resetScore();
+            selectedGem = null;
+            isProcessing = false;
+            isGameOver = false;
+            initializeGrid();
+            renderGrid();
+            startTimer(); 
+            showModal('歡迎！', `遊戲時長 ${GAME_DURATION} 秒！快速交換動物以獲得高分！`, null);
+            console.log('遊戲已重新開始');
+        }
+
+        // 綁定重新開始按鈕
+        newGameBtn.addEventListener('click', startNewGame);
+
+        // 首次啟動遊戲
+        startNewGame();
+    </script>
+</body>
+</html>
